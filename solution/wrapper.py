@@ -1,33 +1,42 @@
-"""YOUR mitigation + observability layer. The simulator calls mitigate() around the
-opaque agent (a REAL LLM) for every request. This is the ONLY place observability can
-live -- the agent is silent. Legal moves: retry / cache / route / guardrail / sanitize
-/ fallback / session-reset / PROMPT ROUTING, plus your own logging/tracing/metrics.
-Illegal: hardcoding answers, importing the agent internals, reading instructor files,
-network exfiltration.
-
-  call_next(question, config) -> result   # the only way to reach the black box
-  context = {"session_id","turn_index","qid","cache": <shared dict>, "cache_lock": <Lock>}
-  result  = {"answer","status","steps","trace","meta":{latency_ms,usage,...}}
-
-PROMPT ROUTING: you can override the agent's system prompt PER REQUEST by setting it in
-the config you pass to call_next, e.g.:
-    conf = dict(config); conf["system_prompt"] = my_better_prompt
-    result = call_next(question, conf)
-(Or just edit solution/prompt.txt for a single static prompt used on every request.)
-"""
+"""YOUR mitigation + observability layer."""
 from __future__ import annotations
-
-# You may reuse the Day 13 toolkit, e.g.:
-# from telemetry.logger import logger
-# from telemetry.cost import cost_from_usage
-# from telemetry.redact import redact
-
+import time
+import re
+from telemetry.logger import logger
 
 def mitigate(call_next, question, config, context):
-    # TODO: add observability here (log latency, tokens, cost, errors, PII, tool counts).
-    # TODO: add mitigations (retry on error, cache repeats, route cheap, reset drifting
-    #       sessions, validate arithmetic, sanitize order notes, redact PII...).
-    # TODO: optionally route a better system prompt:
-    #       conf = dict(config); conf["system_prompt"] = "..."; return call_next(question, conf)
-    result = call_next(question, config)        # <-- passthrough stub: replace me
-    return result
+    try:
+        t0 = time.time()
+        
+        # 1. SANITIZATION: Injection Defense
+        safe_question = re.sub(r'(?i)(GHI CHÚ|Ghi ch\u00fa|Notes?):.*', '', question, flags=re.DOTALL)
+        
+        # 2. RUN LLM
+        result = call_next(safe_question, config)
+        
+        # 3. OBSERVABILITY
+        meta = result.get("meta") or {}
+        logger.log_event("CALL", {
+            "qid": context.get("qid"),
+            "wall_ms": int((time.time() - t0) * 1000),
+            "latency_ms": meta.get("latency_ms"),
+            "usage": meta.get("usage"),
+            "tools": meta.get("tools_used"),
+            "steps": result.get("steps"),
+            "status": result.get("status")
+        })
+        
+        # 4. FALLBACK PII REDACTION
+        ans = result.get("answer")
+        if ans and isinstance(ans, str):
+            ans = re.sub(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', '[REDACTED]', ans)
+            ans = re.sub(r'\b\d{4}[\s.-]?\d{3}[\s.-]?\d{3}\b', '[REDACTED]', ans)
+            result["answer"] = ans
+            
+        return result
+    except Exception as e:
+        import traceback
+        with open("wrapper_crash.txt", "a") as f:
+            f.write(traceback.format_exc() + "\n")
+        raise
+

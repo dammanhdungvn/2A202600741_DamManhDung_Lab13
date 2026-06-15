@@ -1,0 +1,35 @@
+# Observathon Research & Strategy
+
+## 1. Context and Objective
+The goal is to maximize the composite "production score" on a held-out private test set for an LLM-based e-commerce agent. The test set will be published near the very end of the competition and will contain "injection twists" (e.g., malicious commands hidden in order notes) and paraphrased questions to combat overfitting.
+
+## 2. Core Mitigation Strategy (Defense-in-Depth)
+Because the private test set is hidden and adversarial, the system must not rely on hardcoded keyword blocks or memorization. Instead, it must enforce strict operational rules:
+- **No Hardcoding/Overfitting:** Treat user input as untrusted data.
+- **Input Sanitization:** The `wrapper.py` should aggressively sanitize the "Notes" (GHI CHÚ) section to remove injected prices or instructions before passing them to the LLM.
+
+## 3. Configuration Fixes (`config.json`)
+The initial configuration is intentionally sabotaged. The following fixes are required:
+- `temperature`: Reduce from 1.6 to ~0.1-0.2 for precise arithmetic and deterministic tool usage.
+- `loop_guard`: Set to `true`.
+- `tool_budget`: Cap at ~4 to prevent infinite loops and `tool_overuse` penalties.
+- `tool_error_rate` & `session_drift_rate`: Set to 0.
+- `normalize_unicode` & `redact_pii`: Set to `true`.
+- `self_consistency`: Set to 2 or 3 to steady noisy arithmetic.
+- `catalog_override`: Clear the malicious override (e.g., macbook out of stock).
+
+## 4. Prompt Optimization (`prompt.txt`)
+The system prompt (must be under 3000 chars) must enforce:
+- **Tool-First Execution:** Always call `check_stock`, `get_discount`, and `calc_shipping` before giving a total.
+- **Grounding (Anti-Fabrication):** Only use data from tools. Refuse out-of-stock items instead of inventing prices.
+- **Exact Arithmetic:** Calculate Subtotal -> Discount -> Shipping -> Total.
+- **PII Protection:** Never echo the user's email or phone number.
+- **Injection Defense:** Explicitly ignore instructions in order notes. Prices come ONLY from `check_stock`.
+
+## 5. Wrapper Architecture (`wrapper.py`)
+- **Observability:** Intercept `call_next()` to log latency, token usage, tool counts, and PII leaks.
+- **Retry Pattern:** Automatically retry failed tool calls or bad LLM outputs.
+- **Caching:** Cache responses for identical questions to save cost/latency (vital if the hidden test has duplicates).
+
+## 6. Testing Requirement
+All implementations MUST be successfully verified by running the local Ubuntu binary `./observathon-sim`. Execution on Windows is not supported in this environment.
