@@ -1,8 +1,8 @@
 {
   "provider": "openai",
-  "model": "qwen3.7-plus",
+  "model": "qwen-max",
   "model_price_tier": "cheap",
-  "max_steps": 8,
+  "max_steps": 12,
   "loop_guard": true,
   "tool_budget": 4,
   "temperature": 0.0,

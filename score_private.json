@@ -1,0 +1,21 @@
+{
+  "team": "Đàm Mạnh Dũng",
+  "phase": "private",
+  "headline": 44.95,
+  "sub": {
+    "correct": 0.0,
+    "quality": 0.0,
+    "error": 0.0,
+    "latency": 1.0,
+    "cost": 1.0,
+    "drift": 1.0,
+    "prompt": 0.0
+  },
+  "diag_f1": 0.952,
+  "n": 0,
+  "n_correct": 0,
+  "judge_mode": "offline",
+  "weights_hash": "e81a8ed58d93",
+  "key_hash": "9a800fa6968d",
+  "sig": "118c74b553fe3fb238f3accbc5471b45f17389154c3e5b0e63e734fd283579dc"
+}

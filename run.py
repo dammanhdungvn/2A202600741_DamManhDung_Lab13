@@ -164,6 +164,7 @@ def main():
         "--run", out_file,
         "--findings", findings,
         "--team", TEAM,
+        "--phase", testset,
         "--out", score_file,
     ], env=env)
 
