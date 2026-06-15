@@ -1,30 +1,72 @@
 {
-  "team": "Team-Vibe-Coder",
+  "team": "Đàm Mạnh Dũng",
   "schema_version": 1,
   "findings": [
     {
-      "fault_class": "prompt_injection",
-      "evidence": {"metric": "anomalous_prices_in_private_test", "observed": "Agent follows arbitrary GHI CHU instructions", "trace_ids": []},
-      "root_cause": "System prompt was weak; LLM treated user notes as system instructions.",
-      "suggested_fix": "Rewrote prompt to treat notes as DATA ONLY, and added regex sanitization in wrapper.py."
+      "fault_class": "error_spike",
+      "evidence": {"metric": "tool_fail_rate", "observed": "Intermittent tool failures"},
+      "root_cause": "tool_error_rate was non-zero and no retries.",
+      "suggested_fix": "Set tool_error_rate to 0 and enabled retry."
     },
     {
-      "fault_class": "fabrication",
-      "evidence": {"metric": "fake_totals", "observed": "Agent hallucinates prices for out of stock items", "trace_ids": []},
-      "root_cause": "Original prompt did not enforce grounding to tools and temperature was 1.6.",
-      "suggested_fix": "Enforced grounding in prompt.txt (ONLY use tool data) and lowered temperature to 0.1 in config.json."
-    },
-    {
-      "fault_class": "pii_leak",
-      "evidence": {"metric": "leaked_emails_and_phones", "observed": "Agent repeats user sensitive information", "trace_ids": []},
-      "root_cause": "redact_pii was false in config.",
-      "suggested_fix": "Set redact_pii to true in config.json and added defensive regex redaction in wrapper.py."
+      "fault_class": "latency_spike",
+      "evidence": {"metric": "p99_latency", "observed": "Long tail latency"},
+      "root_cause": "No caching and large context.",
+      "suggested_fix": "Enabled cache and reduced context_size."
     },
     {
       "fault_class": "cost_blowup",
-      "evidence": {"metric": "token_usage_high", "observed": "Massive token burns and high latency", "trace_ids": []},
-      "root_cause": "verbose_system true, large context_size, infinite tool loop without guard.",
-      "suggested_fix": "Enabled loop_guard, restricted tool_budget to 4, reduced context_size, and caching identical queries."
+      "evidence": {"metric": "token_usage", "observed": "High cost and massive tokens"},
+      "root_cause": "model_price_tier was expensive, verbose_system true.",
+      "suggested_fix": "Set model_price_tier to cheap, verbose_system false."
+    },
+    {
+      "fault_class": "quality_drift",
+      "evidence": {"metric": "psi_quality", "observed": "Answers worsen over session"},
+      "root_cause": "session_drift_rate > 0.",
+      "suggested_fix": "Set session_drift_rate to 0.0 and enabled self_consistency."
+    },
+    {
+      "fault_class": "infinite_loop",
+      "evidence": {"metric": "max_steps_status", "observed": "Repeated tool calls"},
+      "root_cause": "No loop guard enabled.",
+      "suggested_fix": "Enabled loop_guard and set max_steps to 10."
+    },
+    {
+      "fault_class": "tool_failure",
+      "evidence": {"metric": "diacritic_city", "observed": "Data contradicts reality for cities"},
+      "root_cause": "normalize_unicode was false and catalog_override had fake data.",
+      "suggested_fix": "Set normalize_unicode to true and cleared catalog_override."
+    },
+    {
+      "fault_class": "pii_leak",
+      "evidence": {"metric": "email_phone", "observed": "Raw PII in answer"},
+      "root_cause": "redact_pii was false.",
+      "suggested_fix": "Set redact_pii to true and added wrapper regex."
+    },
+    {
+      "fault_class": "fabrication",
+      "evidence": {"metric": "fake_totals", "observed": "Invented prices for out of stock items"},
+      "root_cause": "Prompt did not enforce grounding.",
+      "suggested_fix": "Rewrote prompt to strictly use tool data."
+    },
+    {
+      "fault_class": "arithmetic_error",
+      "evidence": {"metric": "wrong_total", "observed": "Math errors in totals"},
+      "root_cause": "Temperature too high.",
+      "suggested_fix": "Lowered temperature to 0.1, added math verification."
+    },
+    {
+      "fault_class": "tool_overuse",
+      "evidence": {"metric": "tools_used", "observed": "Unnecessary repeated calls"},
+      "root_cause": "Unlimited tool budget.",
+      "suggested_fix": "Set tool_budget to 4."
+    },
+    {
+      "fault_class": "prompt_injection",
+      "evidence": {"metric": "fake_prices", "observed": "Follows GHI CHU notes"},
+      "root_cause": "Notes were treated as system instructions.",
+      "suggested_fix": "Regex sanitization in wrapper and explicit prompt rules."
     }
   ]
 }
