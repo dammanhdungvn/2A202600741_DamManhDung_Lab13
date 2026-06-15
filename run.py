@@ -13,6 +13,8 @@ import sys
 import glob
 import json
 import subprocess
+import shutil
+import tempfile
 
 # ──────────────────────────────────────────────
 # CẤU HÌNH — chỉnh ở đây nếu cần
@@ -21,6 +23,17 @@ TEAM = "Đàm Mạnh Dũng"
 API_KEY = "sk-ws-H.IILDPE.1SG4.MEQCIEVQxPm_BhPbBE9Vo7pwhYUmMnnwdlLng-DZZI9-_j4lAiAWDsSpGbAeO2eTXWjKxVamGuDQDKHbvlDTJtaOZHXnXg"
 BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 CONCURRENCY = 8
+
+# Danh sách model theo thứ tự ưu tiên (model đầu = tốt nhất)
+# Script sẽ tự động thử từng model nếu model trước bị lỗi quota
+MODEL_FALLBACK_LIST = [
+    "qwen3-max",
+    "qwen-max",
+    "qwen3.5-122b-a10b",
+    "qwen3.7-plus",
+    "qwen3.6-plus",
+    "qwen3-vl-flash",
+]
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
@@ -33,6 +46,11 @@ def find_binary(pattern):
         print(f"\033[1;31m[ERROR]\033[0m Không tìm thấy binary khớp với '{pattern}'")
         print(f"        Hãy đảm bảo file tồn tại trong: {ROOT}")
         sys.exit(1)
+    # Auto chmod +x nếu chưa có quyền execute
+    for m in matches:
+        if not os.access(m, os.X_OK):
+            os.chmod(m, 0o755)
+            print(f"\033[1;33m[INFO]\033[0m Auto chmod +x: {os.path.basename(m)}")
     # Ưu tiên file executable
     for m in matches:
         if os.access(m, os.X_OK):
@@ -48,8 +66,15 @@ def banner(msg, color="\033[1;36m"):
 
 
 def run(cmd, env=None):
-    """Chạy lệnh shell, in output realtime, raise nếu lỗi."""
-    result = subprocess.run(cmd, env=env, cwd=ROOT)
+    """Chạy lệnh shell, in output realtime ra terminal."""
+    result = subprocess.run(
+        cmd,
+        env=env,
+        cwd=ROOT,
+        stdout=sys.stdout,   # stream thẳng ra terminal
+        stderr=sys.stderr,   # stream stderr ra terminal
+    )
+
     if result.returncode != 0:
         print(f"\033[1;31m[ERROR]\033[0m Lệnh thất bại: {' '.join(cmd)}")
         sys.exit(result.returncode)
