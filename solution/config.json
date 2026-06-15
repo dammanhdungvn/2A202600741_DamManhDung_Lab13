@@ -1,6 +1,6 @@
 {
   "provider": "openai",
-  "model": "qwen-max",
+  "model": "qwen3.5-122b-a10b",
   "model_price_tier": "cheap",
   "max_steps": 12,
   "loop_guard": true,
